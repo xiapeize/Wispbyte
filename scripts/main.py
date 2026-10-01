@@ -770,130 +770,23 @@ def get_servers(sb) -> List[str]:
     return []
 
 
-# ====================== 重启服务器（完整流程）======================
-def restart_server(sb, identifier: str) -> bool:
+# ====================== 访问服务器控制台 ======================
+def visit_console(sb, identifier: str) -> bool:
     """
-    完整重启流程：
-    1. 导航到控制台
-    2. 点击 Start/Restart 按钮
-    3. 处理广告流程（reward video / alert / adblocker）
-    4. 确保回到控制台页面
-    5. 处理 CF Turnstile 验证弹窗
-    6. 轮询服务器状态
+    仅导航到服务器控制台页面，不做任何操作。
     """
     console_url = CONSOLE_URL_TEMPLATE.format(identifier=identifier)
     safe_id = mask_server_id(identifier)
     log(f"{'─'*40}")
-    log(f"重启服务器: {safe_id}")
+    log(f"访问控制台: {safe_id}")
     log(f"{'─'*40}")
 
-    # ── Step 1: 导航到控制台 ──
     log(f"导航到控制台: {safe_id}")
     sb.get(console_url)
     time.sleep(5)
     block_ads_modals(sb)
-
-    # ── Step 2: 点击 Start / Restart ──
-    start_btn = None
-    for btn_sel, btn_name in [('button#start-btn', 'Start'), ('button#restart-btn', 'Restart')]:
-        try:
-            start_btn = sb.wait_for_element_visible(btn_sel, timeout=8)
-            log(f"找到 {btn_name} 按钮")
-            break
-        except Exception:
-            continue
-
-    if not start_btn:
-        log("未找到 Start/Restart 按钮", "ERROR")
-        return False
-
-    try:
-        start_btn.click()
-        log("✅ 已点击 Start/Restart 按钮")
-    except Exception:
-        try:
-            sb.execute_script("document.querySelector('#start-btn, #restart-btn').click()")
-            log("✅ 已通过 JS 点击 Start/Restart 按钮")
-        except Exception as e:
-            log(f"点击 Start/Restart 失败: {e}", "ERROR")
-            return False
-
-    # 等待页面响应
-    time.sleep(3)
-
-    # ── Step 3: 处理广告流程 ──
-    log("=== 开始处理广告流程 ===")
-    handle_reward_ad_flow(sb, identifier, console_url)
-    log("=== 广告流程处理完毕 ===")
-
-    # ── Step 4: 确保回到控制台页面 ──
-    time.sleep(2)
-    current_url = sb.get_current_url()
-    if identifier not in current_url or "reward" in current_url:
-        log(f"当前不在控制台页面（{current_url[:80]}），重新导航...")
-        sb.get(console_url)
-        time.sleep(5)
-        block_ads_modals(sb)
-    else:
-        log(f"当前在控制台页面，无需重新导航")
-        block_ads_modals(sb)
-
-    # ── Step 5: 处理 CF Turnstile 验证弹窗 ──
-    log("=== 开始处理 CF Turnstile 验证 ===")
-    cf_result = handle_restart_turnstile_modal(sb, timeout=90)
-    if not cf_result:
-        log("CF Turnstile 验证失败", "WARN")
-        # 不直接返回 False，继续尝试轮询
-    else:
-        log("=== CF Turnstile 验证完成 ===")
-
-    block_ads_modals(sb)
-
-    # ── Step 6: 轮询服务器状态 ──
-    log(f"开始轮询服务器状态（最长 60 秒）: {safe_id}")
-    poll_timeout = 60
-    poll_interval = 5
-    start_poll = time.time()
-
-    status_script = f'''
-        var callback = arguments[arguments.length - 1];
-        var serverId = {json.dumps(identifier)};
-        fetch('/client/api/servers/status', {{
-            method: 'GET',
-            headers: {{ 'Accept': 'application/json' }}
-        }})
-        .then(function(res) {{ return res.json(); }})
-        .then(function(data) {{
-            var server = data.servers.find(function(s) {{
-                return s.identifier === serverId;
-            }});
-            callback(server ? server.current_state : null);
-        }})
-        .catch(function() {{ callback(null); }});
-    '''
-
-    while time.time() - start_poll < poll_timeout:
-        try:
-            status = sb.execute_async_script(status_script)
-            if status and 'running' in str(status).lower():
-                log(f"✅ 服务器 {safe_id} 状态: {status}，重启成功！")
-                return True
-            log(f"当前状态: {status or '未知'}，{poll_interval}s 后重试...")
-        except Exception as e:
-            log(f"状态检查异常: {e}", "WARN")
-        time.sleep(poll_interval)
-
-    # 最终检查
-    try:
-        status = sb.execute_async_script(status_script)
-        if status and 'running' in str(status).lower():
-            log(f"✅ 最终检查成功: {safe_id} 状态: {status}")
-            return True
-        log(f"❌ 轮询超时，最终状态: {status or '未知'}", "ERROR")
-        return False
-    except Exception as e:
-        log(f"最终状态检查失败: {e}", "ERROR")
-        return False
+    log(f"✅ 已进入控制台: {safe_id}")
+    return True
 
 
 # ====================== 账号处理 ======================
@@ -921,11 +814,11 @@ def process_account(idx: int, email: str, password: str, tg_token: str, tg_chat:
                 return
 
             for si, server_id in enumerate(servers, start=1):
-                success = restart_server(sb, server_id)
-                suffix = f"done-{si}" if len(servers) > 1 else "done"
+                success = visit_console(sb, server_id)
+                suffix = f"console-{si}" if len(servers) > 1 else "console"
                 screenshot = take_screenshot(sb, idx, suffix)
                 status_icon = "✅" if success else "❌"
-                status_text = "重启成功" if success else "重启失败"
+                status_text = "已进入控制台" if success else "访问失败"
                 caption = (
                     f"{status_icon} {status_text}\n\n"
                     f"账号: {mask_email(email)}\n"
