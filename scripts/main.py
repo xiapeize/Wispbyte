@@ -3,7 +3,6 @@
 import os
 import sys
 import time
-import json
 import logging
 import tempfile
 import subprocess
@@ -128,25 +127,6 @@ def take_screenshot(sb, account_index: int, suffix: str) -> str:
         return ""
 
 
-# ====================== 广告弹窗 CSS 屏蔽 ======================
-def block_ads_modals(sb):
-    """屏蔽干扰性广告弹窗（不屏蔽广告本身，只屏蔽无关弹窗）"""
-    css = """
-    .wisp-offer-modal, .instagram-modal, .qc-cmp2-summary-section {
-        display: none !important;
-    }
-    """
-    try:
-        sb.execute_script(f'''
-            var style = document.createElement('style');
-            style.textContent = {json.dumps(css)};
-            document.head.appendChild(style);
-        ''')
-        log("✅ 已注入广告屏蔽 CSS")
-    except Exception as e:
-        log(f"注入屏蔽 CSS 失败: {e}", "WARN")
-
-
 # ====================== Turnstile 处理 ======================
 def check_turnstile_solved(sb) -> bool:
     """检查当前页面/弹窗中的 Turnstile 是否已完成"""
@@ -228,8 +208,6 @@ def login(sb, email: str, password: str) -> bool:
     else:
         log("登录后未成功跳转到仪表盘", "ERROR")
         return False
-
-    block_ads_modals(sb)
 
     DASHBOARD_SELECTORS = [
         'div.server-list', 'div.servers-container', 'div.card',
@@ -325,7 +303,6 @@ def visit_console(sb, identifier: str) -> bool:
     log(f"导航到控制台: {safe_id}")
     sb.get(console_url)
     time.sleep(5)
-    block_ads_modals(sb)
     log(f"✅ 已进入控制台: {safe_id}")
     return True
 
