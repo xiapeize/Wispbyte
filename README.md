@@ -1,6 +1,6 @@
-# Wispbyte 多账号自动重启工具
+# Wispbyte 多账号控制台自动访问工具
 
-> 基于 **GitHub Actions + SeleniumBase** 的全自动服务器重启方案，支持自动登录、广告观看、Cloudflare Turnstile 验证，通过 **Telegram** 发送实时截图通知。
+> 基于 **GitHub Actions + SeleniumBase** 的服务器控制台自动访问方案，支持自动登录、Cloudflare Turnstile 验证，自动依次打开每台服务器控制台并屏蔽干扰性广告弹窗，通过 **Telegram** 发送实时截图通知。
 
 ⚠️ **旧版 Cloudflare Workers 方案已失效**（Workers 平台无法处理 Turnstile 验证与浏览器指纹检测），本文档合并保留其 API 调用说明，**主体内容为 GitHub Actions 新方案**。  
 已部署 Workers 的用户请迁移至 Actions 版本。
@@ -13,9 +13,9 @@
 |------|------------------------|----------------------------|
 | 自动登录 | ✅ 完整模拟浏览器 | ❌ 需手动维护 Cookie |
 | Turnstile 验证 | ✅ 自动识别点击 | ❌ 不支持 |
-| 广告观看 | ✅ 自动处理 | ❌ 不支持 |
+| 控制台访问 | ✅ 自动打开每台服务器控制台 | ❌ 不支持 |
 | 每日自动执行 | ✅ Cron 定时 / API / 手动 | ✅ Cron 触发 |
-| Telegram 通知 | ✅ 每次重启截图通知 | ✅ 汇总报告 |
+| Telegram 通知 | ✅ 每台服务器截图通知 | ✅ 汇总报告 |
 | 部署难度 | 低（Fork + Secrets） | 中（Worker + KV） |
 | 当前状态 | ✅ 有效 | ❌ 已失效 |
 
@@ -47,7 +47,7 @@
 
 ### 3. 运行
 
-- **手动运行**：Actions 页面 → `Wispbyte 自动重启` → Run workflow。
+- **手动运行**：Actions 页面 → `Wispbyte 自动访问控制台` → Run workflow。
 - **API 触发**（见下方 API 调用方式）。
 - **定时运行**：取消 workflow 文件中 `schedule` 的注释，修改 cron 表达式。
 
@@ -77,7 +77,7 @@ WISPBYTE_2 = alice@domain.com-----AnotherPass!
 1. 向 [BotFather](https://t.me/botfather) 申请 Bot Token。
 2. 获取你的 Chat ID（向 bot 发消息后访问 `https://api.telegram.org/bot<TOKEN>/getUpdates`）。
 3. 填入 `TG_BOT_TOKEN` 和 `TG_CHAT_ID`。
-4. 重启完成后，Bot 将发送带截图的结果通知。
+4. 打开控制台后，Bot 将发送带截图的结果通知。
 
 ### 定时任务（Cron）
 
@@ -142,24 +142,19 @@ curl -X POST \
 1. 打开 Wispbyte 登录页，填写邮箱密码  
 2. 自动点击 Cloudflare Turnstile 验证  
 3. 登录成功后通过 API 获取所有服务器 ID  
-4. 进入每个服务器控制台，点击 **Start/Restart**  
-5. 智能处理广告流程：  
-   - 自动观看奖励视频（Watch ad to continue）  
-   - 处理 “No ad available” 弹窗  
-   - 绕过 AdBlocker 检测页  
-6. 处理重启时弹出的 **CF Turnstile 二次验证弹窗**  
-7. 轮询服务器状态直至 `running`  
-8. 截图并通过 Telegram 发送结果  
-9. 多账号间自动切换 WARP IP（避免风控）
+4. 依次打开每个服务器控制台页面（不点击 Start/Restart）  
+5. 屏蔽控制台页面上的干扰性广告弹窗  
+6. 截图并通过 Telegram 发送结果  
+7. 多账号间自动切换 WARP IP（避免风控）
 
 ---
 
 ## 💬 Telegram 通知示例
 
-配置 Telegram 后，每台服务器重启结束会收到：
+配置 Telegram 后，每台服务器控制台打开后会收到：
 
 ```
-✅ 重启成功
+✅ 已打开控制台
 
 账号: a***@e***.com
 服务器: fb***73

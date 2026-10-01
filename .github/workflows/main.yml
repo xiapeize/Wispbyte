@@ -1,4 +1,4 @@
-name: Wispbyte 自动重启
+name: Wispbyte 自动访问控制台
 
 on:
   schedule:
@@ -15,8 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  restart:
-    name: 执行重启脚本
+  open-console:
+    name: 执行控制台访问脚本
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -49,7 +49,7 @@ jobs:
           stack: dual
           mode: client
 
-      - name: 执行重启脚本
+      - name: 执行控制台访问脚本
         env:
           WISPBYTE_1: ${{ secrets.WISPBYTE_1 }}
           WISPBYTE_2: ${{ secrets.WISPBYTE_2 }}
